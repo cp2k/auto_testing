@@ -1,0 +1,15 @@
+# module swap PrgEnv-cray PrgEnv-gnu ; module load fftw
+
+CC       = cc
+CPP      =
+FC       = ftn
+LD       = ftn
+AR       = ar -r
+CPPFLAGS =
+DFLAGS   = -D__GFORTRAN -D__FFTSG -D__LIBINT -D__parallel -D__SCALAPACK -D__BLACS -D__FFTW3 -D__MAX_CONTR=3 -D__HAS_smm_snn -D__HAS_smm_dnn -D__HAS_NO_GETLOG -D__STATM_RESIDENT -D__LIBINT_MAX_AM=6 -D__LIBDERIV_MAX_AM1=5 -D__LIBXC2
+FCFLAGS  = -g -O1 -fbounds-check -ffree-form $(DFLAGS)
+LDFLAGS  = $(FCFLAGS)
+#
+LIBS     = -L/users/vondele/libsmm/ -lsmm_snn_xk6_cray -lsmm_dnn_xk6_cray  -L/project/s281/vondele/libint/lib/ -lderiv_ham -lint_ham -lstdc++ -L/users/schuetto/todi/libxc-2.0.1/lib/ -lxc
+
+OBJECTS_ARCHITECTURE = machine_gfortran.o
