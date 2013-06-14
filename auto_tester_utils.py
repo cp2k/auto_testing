@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
 
 import subprocess as sp
@@ -7,20 +6,10 @@ import time
 import os
 from os import path
 from traceback import print_exc
+import re
 
 devnull = open("/dev/null", "w")
 quiet = dict(stdout=devnull, stderr=devnull)
-#===============================================================================
-def main():
-    while(True):
-        try:
-            check_for_updates()
-            print("sleeping for 60 seconds...")
-            time.sleep(60)
-        except:
-            print_exc()
-            print("Something went wrong, sleeping for 5 minutes...")
-            time.sleep(300)
 
 #===============================================================================
 def git_rev_parse(arg):
@@ -69,4 +58,36 @@ def git_push_notes():
     sp.check_call("git push oschuett_dev refs/notes/*".split(), cwd="./cp2k/")
     sp.check_call("git push github_cp2k  refs/notes/*".split(), cwd="./cp2k/")
 
+#===============================================================================
+def check_output(cmd):
+    p = sp.Popen(cmd, stdout=sp.PIPE, cwd="./cp2k/")
+    output = p.communicate()[0]
+    assert(p.wait()==0)
+    return(output.strip())
+
+#===============================================================================
+def regtest_report(fn):
+    if(not path.exists(fn)):
+        return("FAIL - log-file not found")
+
+    output = open(fn).read()
+    pattern  = r"number of FAILED  tests\s+(\d+)\s+"
+    pattern += r"number of WRONG   tests\s+(\d+)\s+"
+    pattern += r"number of CORRECT tests\s+(\d+)\s+"
+    pattern += r"number of NEW     tests\s+(\d+)\s+"
+    pattern += r"number of         tests\s+(\d+)\s+"
+
+    m = re.search(pattern, output)
+    if(m==None):
+        return("FAIL summary not found within log-file")
+
+    (failed, wrong, corr, new, total) = [int(i) for i in m.groups()]
+
+    summary = "TOTAL: %d, FAILED: %d, WRONG: %d CORRECT: %d NEW: %d"%(total, failed, wrong, corr, new)
+    if(failed + wrong > 0):
+        return("FAIL "+summary)
+    return("PASS "+summary)
+
+
+#===============================================================================
 #EOF
