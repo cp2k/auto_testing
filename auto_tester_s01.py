@@ -129,7 +129,7 @@ def do_regtests(branch):
        log_f = open(log_fn, "w")
        print("Starting do_regtest (%s)"%log_fn)
        cmd = ["./cp2k/cp2k/tools/do_regtest","-config",regtest_conf_fn]
-       cmd += ["-restrictdir", "QS/regtest-dm-ls-scf"]
+       #cmd += ["-restrictdir", "QS/regtest-dm-ls-scf"]
 
        rtncode = sp.call(cmd, stdout=log_f, stderr=log_f)
        log_f.close()
@@ -147,29 +147,36 @@ def do_regtests(branch):
 
 #===============================================================================
 def update_www():
-    sys.stdout.write("Updating www report...")
+    sys.stdout.write("Updating www report... ")
     cmd = "git log --remotes --decorate  --show-notes=* --date-order -n 10".split()
     cmd += [r"--pretty=tformat:{'H':r'%H', 'an':r'%an', 'ae':r'%ae', 'N':r'''%N''', 's':r'%s', 'b':r'''%b''' },"]
     output = check_output(cmd)
     commits = eval("["+output+"]")
-    
-    #print commits
 
     timestamp = datetime.now().replace(microsecond=0).isoformat()
-    html = "<html><head><meta charset='utf-8'>"
+    html = "<html><head>"
+    html += "<meta charset='utf-8'>"
+    html += '<meta http-equiv="refresh" content="30"/>'
     html += "<title>CP2K Auto-Tester Report from %s</title>"%timestamp
     html += "</head><body>"
 
+    remote2baseurls = remote_baseurls()
+
     for c in commits:
+        containing_branches = git_branch("-r --contains "+c['H'])
+        baseurl = remote2baseurls[containing_branches[0].split("/", 1)[0]]
         html += '<div style="border:1px solid gray; margin:10px; padding:5px;">'
-        html += '<a href="https://github.com/cp2k/cp2k/commit/%s"><h3>%s</h3></a>'%(c['H'], c['s'])
+        html += '<a href="%s/commit/%s"><h3>%s</h3></a>'%(baseurl, c['H'], c['s'])
         html += "SHA1: %s<br>"%c['H']
         html += 'Author: '+c['an'] + "<br>" # + " &lt;" +c['ae'] + "&gt; <br>"
-        branches = []
-        for branch in git_branch("-r --contains "+c['H']):
-            n = branch.split("/", 1)[1]
-            branches.append('<a href="https://github.com/cp2k/cp2k/commits/%s">%s</a>'%(n,n))
-        html += "Branch(es): "+(", ".join(branches))
+        branches_html = []
+
+        for remote_branch in containing_branches:
+            remote, branch = remote_branch.split("/", 1)
+            branches_html.append('<a href="%s/commits/%s">%s</a>'%(remote2baseurls[remote],branch,branch))
+
+
+        html += "Branch(es): "+(", ".join(branches_html))
         html += format_notes(c['N'])
         #html += "<pre>"+c['N']+"</pre>"
             #for line in c['N'].split("\n"):
@@ -185,6 +192,18 @@ def update_www():
     sp.check_call("scp index.html cp2k.org:test.cp2k.org/auto_tester/".split(), **quiet)
 
     print("done.")
+
+#===============================================================================
+def remote_baseurls():
+    baseurls = {}
+    output = check_output("git remote -v".split())
+    remotes = output.split("\n")
+    for r in remotes:
+        name, url = r.split()[:2]
+        m = re.match("^git@github\.com:(.+)\.git$", url)
+        if(m):
+            baseurls[name] = "https://github.com/"+m.group(1)
+    return(baseurls)
 
 #===============================================================================
 def format_notes(notes):
